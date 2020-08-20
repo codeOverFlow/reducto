@@ -1,0 +1,8 @@
+[package]
+name = "reducto"
+version = "0.1.0"
+authors = ["codeoverflow <adrien.bodineau@gmail.com>"]
+edition = "2018"
+publish = false
+
+[dependencies]
