@@ -27,5 +27,6 @@
 //! oua
 
 pub mod counter;
+pub mod deflate;
 pub mod huffman;
 pub mod lz77;

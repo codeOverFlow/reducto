@@ -1,4 +1,5 @@
 use std::cmp::{min, Ordering};
+use std::slice::Iter;
 
 #[derive(Debug, Default, Eq)]
 pub struct LZ77Match {
@@ -43,7 +44,24 @@ pub enum LZ77NodeMatch {
     EndOfData,
 }
 
-#[derive(Debug)]
+impl PartialEq for LZ77NodeMatch {
+    fn eq(&self, other: &Self) -> bool {
+        match self {
+            LZ77NodeMatch::NextMatch(value) => match other {
+                LZ77NodeMatch::NextMatch(other_value) => value == other_value,
+                LZ77NodeMatch::EndOfData => true,
+            },
+            Self::EndOfData => match other {
+                LZ77NodeMatch::NextMatch(_) => false,
+                LZ77NodeMatch::EndOfData => true,
+            },
+        }
+    }
+}
+
+impl Eq for LZ77NodeMatch {}
+
+#[derive(Debug, Eq)]
 pub struct LZ77Node {
     offset: usize,
     length: usize,
@@ -58,6 +76,25 @@ impl LZ77Node {
             next_match,
         }
     }
+
+    pub fn to_vec_u8(&self) -> Vec<u8> {
+        let mut res: Vec<u8> = Vec::new();
+        res.push(self.offset as u8);
+        res.push(self.length as u8);
+        res.push(self.offset as u8);
+        if let LZ77NodeMatch::NextMatch(data) = self.next_match {
+            res.push(data);
+        }
+        res
+    }
+}
+
+impl PartialEq for LZ77Node {
+    fn eq(&self, other: &Self) -> bool {
+        self.length == other.length
+            && self.offset == other.offset
+            && self.next_match == other.next_match
+    }
 }
 
 #[derive(Debug)]
@@ -65,7 +102,6 @@ pub struct LZ77 {
     window_size: usize,
     dictionary_size: usize,
     position: usize,
-    data: Vec<u8>,
     nodes: Vec<LZ77Node>,
 }
 
@@ -98,30 +134,28 @@ fn find_subvec_in_vec(source: &[u8], target: &[u8]) -> Vec<(usize, usize)> {
 }
 
 impl LZ77 {
-    pub fn new<S>(data: S, window_size: usize, dictionary_size: usize) -> LZ77
-    where
-        S: Sized + ToString,
-    {
+    pub fn new(window_size: usize, dictionary_size: usize) -> LZ77 {
         assert_ne!(window_size, 0);
         assert_ne!(dictionary_size, 0);
+        assert!(window_size <= u8::MAX as usize);
+        assert!(dictionary_size <= u8::MAX as usize);
         LZ77 {
             window_size,
             dictionary_size,
             position: 0,
-            data: Vec::from(data.to_string().as_bytes()),
             nodes: Vec::new(),
         }
     }
 
-    fn find_longest_match(&self) -> LZ77Match {
+    fn find_longest_match(&self, data: &[u8]) -> LZ77Match {
         let mut res: LZ77Match = Default::default();
         if self.position > 0 {
             let dictionary_index_start =
                 self.position.checked_sub(self.dictionary_size).unwrap_or(0);
-            let data_available_index_end = min(self.position, self.data.len());
-            let data_available = &self.data[dictionary_index_start..data_available_index_end];
-            let data_window_index_end = min(self.position + self.window_size, self.data.len());
-            let data_window = &self.data[self.position..data_window_index_end];
+            let data_available_index_end = min(self.position, data.len());
+            let data_available = &data[dictionary_index_start..data_available_index_end];
+            let data_window_index_end = min(self.position + self.window_size, data.len());
+            let data_window = &data[self.position..data_window_index_end];
 
             for i in 0..data_window.len() {
                 let substring = &data_window[..=i];
@@ -147,12 +181,16 @@ impl LZ77 {
         res
     }
 
-    pub fn encode(&mut self) {
-        let data_length = self.data.len();
+    pub fn encode<S>(&mut self, data: S)
+    where
+        S: Sized + ToString,
+    {
+        let data: Vec<u8> = Vec::from(data.to_string().as_bytes());
+        let data_length = data.len();
 
         while self.position < data_length {
             // 1. get the longest match
-            let longest_match = self.find_longest_match();
+            let longest_match = self.find_longest_match(&data);
 
             // get the window after the match
             let next_match_value: u8;
@@ -163,7 +201,7 @@ impl LZ77 {
             };
             let next_match_position_start = self.position + longest_match_size;
             if next_match_position_start < data_length {
-                next_match_value = match self.data.iter().nth(next_match_position_start) {
+                next_match_value = match data.iter().nth(next_match_position_start) {
                     Some(character) => *character,
                     None => panic!("Error: Index {} out of bound", next_match_position_start),
                 };
@@ -229,5 +267,9 @@ impl LZ77 {
             Ok(string) => string,
             Err(reason) => panic!("{}", reason),
         }
+    }
+
+    pub fn iter(&self) -> Iter<'_, LZ77Node> {
+        self.nodes.iter()
     }
 }
