@@ -4,7 +4,7 @@ use std::cmp::Ord;
 use std::collections::btree_map::{BTreeMap, IntoIter, Iter};
 use std::fmt::Debug;
 use std::iter::FromIterator;
-use std::ops::{Deref, Index};
+use std::ops::Index;
 
 /// Structure that count occurences of `T` elements
 #[derive(Debug)]

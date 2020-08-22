@@ -5,7 +5,6 @@ use std::collections::btree_map::BTreeMap;
 use std::iter::FromIterator;
 
 use crate::counter::Counter;
-use std::cell::RefCell;
 use std::cmp::Ordering;
 use std::rc::Rc;
 

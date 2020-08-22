@@ -25,5 +25,7 @@
 // #![deny(while_true)]
 
 //! oua
+
 pub mod counter;
 pub mod huffman;
+pub mod lz77;
