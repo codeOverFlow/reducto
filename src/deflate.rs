@@ -29,7 +29,7 @@ impl Deflate {
         S: Sized + ToString,
     {
         let mut huffman = Huffman::new();
-        let huffman_decoded = huffman.decode(&data);
+        let _huffman_decoded = huffman.decode(&data);
         self.lz77.decode()
     }
 }
